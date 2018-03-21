@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Vue example</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios@0.12.0/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lodash@4.13.1/lodash.min.js"></script>
+</head>
+
+<body>
+
+    <div id="root">
+        <h1 v-if="show" v-bind:title="message">{{ title }}</h1>
+        <button @click="getCurrentTime">Update Time</button>
+        {{ currentTime }}
+
+        <!-- v-for中能访问 vue.$data -->
+        <!-- 迭代数组 item, index / 对象 val,key,index -->
+        <!-- 建议尽可能在使用 v-for 时提供 key，除非遍历输出的 DOM 内容非常简单，或者是刻意依赖默认行为以获取性能上的提升。 -->
+        <ul v-for="item in list">
+            <li>{{item.text}}</li>
+        </ul>
+
+        <input v-model="newTodoText" v-on:keyup.enter="addNewTodo" placeholder="Add a todo">
+
+        <ul>
+            <li is="todo-item" v-for="(todo, index) in todos" v-bind:key="todo.id" v-bind:title="todo.title" v-on:remove="todos.splice(index, 1)">
+                <!-- 绑定remove事件 -->
+            </li>
+        </ul>
+
+        <p>{{ reverse }}</p>
+
+        <!-- 加载之后不再变化 -->
+        <span v-bind:class="{active: isActive}" v-once> This field will not change </span>
+        <span v-bind:class="classObject">class object</span>
+        <!-- 条件切换class -->
+        <div v-bind:class="[{ active: isActive }, errorClass]"></div>
+        <!-- style object -->
+        <div v-bind:style="styleObject"></div>
+
+        <!-- v-html 渲染html -->
+        <!-- :href 链接 -->
+        <!-- <form v-on: submit.prevent = "onSubmit" /> 阻止默认行为 -->
+        <!-- <div v-bind:id="dynamicId></div> 设置动态id -->
+        <!-- v-show 和css设置display一样  频繁切换用v-show 如果在运行中条件很少改变用 v-if -->
+
+        <p>{{ fullName }}</p>
+
+        <div id="watch-example">
+            <p>
+                Ask a yes/no question:
+                <input v-model="question">
+            </p>
+            <p>{{ answer }}</p>
+        </div>
+
+
+        <div v-if="type === 'a'">a</div>
+        <div v-else-if="type === 'b'">b</div>
+        <div v-else>not a & b</div>
+
+        <!-- 用key管理复用的元素  -->
+        <!-- 下面2个input不会重新渲染 除非给它们设置key -->
+        <div v-if="loginType === 'username'">
+            <label>Username</label>
+            <input key="key-username" />
+        </div>
+        <div v-else>
+            <label>Email</label>
+            <input key="key-email" />
+        </div>
+        <button @click="toggleLoginType">Toggle login type</button>
+
+
+        <!-- 复选框单一 Boolean-->
+        <div>
+            <input type="checkbox" id="checkbox" v-model="checked">
+            <label for="checkbox">{{ checked }}</label>
+        </div>
+
+        <!-- 复选框多项 -->
+        <div>
+            <input type="checkbox" id="jack" value="Jack" v-model="checkedNames">
+            <label for="jack">Jack</label>
+            <input type="checkbox" id="john" value="John" v-model="checkedNames">
+            <label for="john">John</label>
+            <input type="checkbox" id="mike" value="Mike" v-model="checkedNames">
+            <label for="mike">Mike</label>
+            <br>
+            <span>Checked names: {{ checkedNames }}</span>
+        </div>
+
+        <!-- 单选 -->
+        <select v-model="selected">
+            <option v-for="option in options" v-bind:value="option.value">
+                {{ option.text }}
+            </option>
+        </select>
+        <span>Selected: {{ selected }}</span>
+
+        <my-component></my-component>
+
+
+        <!-- 子与父通信
+            每个 Vue 实例都实现了事件接口，即：
+            使用 $on(eventName) 监听事件
+            使用 $emit(eventName, optionalPayload) 触发事件 -->
+
+        <div id="counter-event-example">
+            <p>{{ total }}</p>
+            <!-- 父监听子的 increment事件 -->
+            <button-counter v-on:increment="incrementTotal"></button-counter>
+            <button-counter v-on:increment="incrementTotal"></button-counter>
+        </div>
+
+
+    </div>
+
+    <!-- 使用payload接收
+    <button-message v-on:message="handleMessage"></button-message>
+ 子发事件
+    handleSendMessage: function () {
+        this.$emit('message', { message: this.message })
+      }
+        父通过padload接收
+      handleMessage: function (payload) {
+        this.messages.push(payload.message)
+      } -->
+    <!-- } -->
+
+    <!-- 非父子通信
+    var bus = new Vue()
+    触发组件 A 中的事件
+    bus.$emit('id-selected', 1) 
+    
+    在组件 B 创建的钩子中监听事件 
+    bus.$on('id-selected', function (id) {
+    ... 
+    }) -->
+
+    <!-- 分发内容
+    <div class="container">
+        <header>
+            <slot name="header"></slot>
+        </header>
+        <main>
+            <slot></slot>
+        </main>
+        <footer>
+            <slot name="footer"></slot>
+        </footer>
+    </div>
+    父组件模板：
+
+    <app-layout>
+        <h1 slot="header">这里可能是一个页面标题</h1>
+
+        <p>主要内容的一个段落。</p>
+        <p>另一个主要段落。</p>
+
+        <p slot="footer">这里有一些联系信息</p>
+    </app-layout> -->
+
+
+    <script>
+        // 全局注册组件
+        Vue.component('todo-item', {
+            template: `<li>{{ title }} <button v-on:click="$emit('remove')">X</button></li>`,
+            props: ['title']
+        })
+        // 局部注册组件
+        var Child = {
+            template: '<div>A custom component!</div>'
+        }
+
+        Vue.component('button-counter', {
+            template: '<button v-on:click="incrementCounter">{{ counter }}</button>',
+            data: function () {
+                return {
+                    counter: 0
+                }
+            },
+            methods: {
+                incrementCounter: function () {
+                    this.counter += 1
+                    this.$emit('increment')
+                }
+            },
+        })
+
+        // 构造 Vue 实例时传入的各种选项大多数都可以在组件里使用。只有一个例外：data 必须是函数
+        // data: function () {
+        //   return {
+        //     counter: 0
+        //   }
+        // }
+
+        // 在 Vue 中，父子组件的关系可以总结为 prop 向下传递，事件向上传递。
+        // 父组件通过 prop 给子组件下发数据，子组件通过事件给父组件发送消息
+
+        // 动态prop 父组件变化时 将变化也传递给子组件 v-bind:  :
+        //             <div id="prop-example-2">
+        //   <input v-model="parentMsg">
+        //   <br>
+        //   <child v-bind:my-message="parentMsg"></child>
+        // </div>
+
+        // 父组件 传递 对象给子组件
+        // todo: {
+        //   text: 'Learn Vue',
+        //   isComplete: false
+        // }
+        // <todo-item v-bind="todo"></todo-item>
+
+        // 传递1
+        // <comp v-bind:some-prop="1"></comp>
+
+        // 单向数据流
+        // 在两种情况下，我们很容易忍不住想去修改 prop 中数据：
+
+        // Prop 作为初始值传入后，子组件想把它当作局部数据来用；
+
+        // Prop 作为原始数据传入，由子组件处理成其它数据输出。
+
+        // 对这两种情况，正确的应对方式是：
+
+        // 定义一个局部变量，并用 prop 的值初始化它：
+
+        // props: ['initialCounter'],
+        // data: function () {
+        //   return { counter: this.initialCounter }
+        // }
+        // 定义一个计算属性，处理 prop 的值并返回：
+
+        // props: ['size'],
+        // computed: {
+        //   normalizedSize: function () {
+        //     return this.size.trim().toLowerCase()
+        //   }
+        // }
+
+
+
+
+        // 组件监听原生事件
+        // <my-component v-on:click.native="doTheThing"></my-component>
+
+
+        // Prop 验证
+
+        // Vue.component('example', {
+        //   props: {
+        //     // 基础类型检测 (`null` 指允许任何类型)
+        //     propA: Number,
+        //     // 可能是多种类型
+        //     propB: [String, Number],
+        //     // 必传且是字符串
+        //     propC: {
+        //       type: String,
+        //       required: true
+        //     },
+        //     // 数值且有默认值
+        //     propD: {
+        //       type: Number,
+        //       default: 100
+        //     },
+        //     // 数组/对象的默认值应当由一个工厂函数返回
+        //     propE: {
+        //       type: Object,
+        //       default: function () {
+        //         return { message: 'hello' }
+        //       }
+        //     },
+        //     // 自定义验证函数
+        //     propF: {
+        //       validator: function (value) {
+        //         return value > 10
+        //       }
+        //     }
+        //   }
+        // })
+        var obj = {
+            foo: 'bar'
+        }
+
+        // 阻止Vue因obj的改变而更新视图
+        Object.freeze(obj);
+
+        // var vm = this
+
+        // 1. Vue可以访问data中的值
+        // vm.title
+        // vm.list
+
+        // 2. Vue提供的方法 使用$区分
+        // vm.$data === data
+        // vm.$el === getElementById('root)
+        // vm.$watch('a', function(new, old){
+        //      这个回调将在 `vm.a` 改变后调用 
+        // })
+        // vm.$props 
+        // vm.$on('test', function (msg) { 
+        //      console.log(msg)  => "hi" 
+        // })
+        // vm.$emit('test', 'hi') 
+
+        // 3. 生命周期
+    //     1、beforeCreate 此时$el、data 的值都为undefined
+
+    // 　　2、创建之后，此时可以拿到data的值，但是$el依旧为undefined
+
+    // 　　3、mount之前，$el的值为“虚拟”的元素节点
+
+    // 　　4、mount之后，mounted之前，“虚拟”的dom节点被真实的dom节点替换，并将其插入到dom树中，于是在触发mounted时，可以获取到$el为真实的dom元素()
+
+    // 　　myVue.$el===document.getElementById("app-8")  // true
+
+        // 以下数组方法会触发视图更新
+        // push()
+        // pop()
+        // shift()
+        // unshift()
+        // splice()
+        // sort()
+        // reverse()
+
+        // 通过以下方法也会更新视图
+        //  filter(), concat() 和 slice() 。这些不会改变原始数组，但总是返回一个新数组。
+        //  example1.items = example1.items.filter(function (item) {
+        //      return item.message.match(/Foo/)
+        // })
+
+        // 直接改变值或长度不会更新视图
+        //         var vm = new Vue({
+        //   data: {
+        //     items: ['a', 'b', 'c']
+        //   }
+        // })
+        // vm.items[1] = 'x' // 不是响应性的
+        // vm.items.length = 2 // 不是响应性的
+        // 解决方法 splice
+        // vm.items.splice(indexOfItem, 1, newValue)
+        // vm.items.splice(newLength)
+
+        // 给对象添加属性也不会更新视图
+        // var vm = new Vue({
+        //     data: {
+        //         a: 1
+        //     }
+        // })
+        // // `vm.a` 现在是响应式的
+        // vm.b = 2 // vm.b不是
+        // 解决方法
+        // 添加单个 
+        // vm.$set(vm.userProfile, 'age', 27)
+        // 添加多个 
+        // vm.userProfile = Object.assign({}, vm.userProfile, {
+        //     age: 27,
+        //     favoriteColor: 'Vue Green'
+        // })
+
+        const vm = new Vue({
+            el: '#root',
+            data: {
+                obj,
+                loginType: 'username',
+                checkedNames: [],
+                total: 0,
+                checked: false,
+                selected: 'A',
+                options: [{
+                        text: 'One',
+                        value: 'A'
+                    },
+                    {
+                        text: 'Two',
+                        value: 'B'
+                    },
+                    {
+                        text: 'Three',
+                        value: 'C'
+                    }
+                ],
+                type: 'c',
+                styleObject: {
+                    color: 'red',
+                    fontSize: '13px'
+                },
+                errorClass: 'error-text',
+                isActive: true,
+                error: null,
+                show: true,
+                currentTime: '',
+                title: 'Vue Example',
+                list: [{
+                        text: 'eat'
+                    },
+                    {
+                        text: 'sleep'
+                    },
+                    {
+                        text: 'code'
+                    }
+                ],
+                message: 'Hello World',
+                firstName: 'Max',
+                lastName: 'Lee',
+                fullName: 'Max Lee',
+                question: '',
+                answer: 'I cannot give you an anwer until you ask a question',
+                newTodoText: '',
+                todos: [{
+                        id: 1,
+                        title: 'Do the dishes',
+                    },
+                    {
+                        id: 2,
+                        title: 'Take out the trash',
+                    },
+                    {
+                        id: 3,
+                        title: 'Mow the lawn'
+                    }
+                ],
+                nextTodoId: 4
+            },
+            components: {
+                'my-component': Child
+            },
+
+            methods: {
+                getCurrentTime: function () {
+                    this.currentTime = new Date().toLocaleString();
+                },
+
+                // `_.debounce` 是一个通过 Lodash 限制操作频率的函数。
+                // 在这个例子中，我们希望限制访问 yesno.wtf/api 的频率
+                // AJAX 请求直到用户输入完毕才会发出。
+                getAnswer: _.debounce(
+                    function () {
+                        if (this.question.indexOf('?') === -1) {
+                            this.answer = 'Questions usually contain a question mark. ;-)'
+                            return
+                        }
+                        this.answer = 'Thinking...'
+                        var vm = this
+                        axios.get('https://yesno.wtf/api')
+                            .then(function (response) {
+                                vm.answer = _.capitalize(response.data.answer)
+                            })
+                            .catch(function (error) {
+                                vm.answer = 'Error! Could not reach the API. ' + error
+                            })
+                    },
+                    // 这是我们为判定用户停止输入等待的毫秒数
+                    500
+                ),
+
+                toggleLoginType: function () {
+                    this.loginType = this.loginType === 'username' ? 'email' : 'username';
+                },
+                addNewTodo: function () {
+                    this.todos.push({
+                        id: this.nextTodoId++,
+                        title: this.newTodoText
+                    })
+                    this.newTodoText = ''
+                },
+                incrementTotal: function () {
+                    this.total += 1
+                }
+
+
+            },
+            computed: {
+                reverse: function () {
+                    return this.message = this.message.split('').reverse().join('');
+                },
+                fullName: function () {
+                    return this.firstName + ' ' + this.lastName;
+                },
+                classObject: function () {
+                    return {
+                        active: this.isActive && !this.error,
+                        'text-danger': this.error && this.error.type === 'fatal'
+                    }
+                }
+
+                // computed默认只有getter， 在需要时可以手动添加setter
+            },
+
+            // 优化写法是将fullname写在computed里面 当有变化则更新fullname 如上
+            watch: {
+                // 在使用watch之前考虑使用computed是否能实现 优化性能
+                // firstName: function(val){
+                //     this.fullName = val +  ' ' + this.lastName;
+                // },
+                // lastName: function(va){
+                //     this.fullName = firstName + ' ' + val;
+                // }
+
+                // 一个需要使用watch的例子
+                // 允许我们执行异步操作 (访问一个 API)，
+                // 限制我们执行该操作的频率，
+                // 并在我们得到最终结果前，设置中间状态
+                question: function (newQuestion, oldQuestion) {
+                    this.answer = 'Waiting for you to stop typing...'
+                    this.getAnswer()
+                }
+            }
+
+
+
+
+        });
+    </script>
+
+</body>
+
+</html>
